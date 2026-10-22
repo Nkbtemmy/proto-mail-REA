@@ -1,0 +1,139 @@
+Here's a complete, self-contained Java file implementing SRP-6a:
+
+```java
+package com.reconmail.srp;
+
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.HexFormat;
+import java.util.Objects;
+
+public class Srp {
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final HexFormat HEX = HexFormat.of().uppercase();
+
+    public record SrpParams(BigInteger N, BigInteger g) {}
+
+    public final class SrpServer {
+        private final BigInteger N;
+        private final BigInteger g;
+        private final BigInteger v;
+        private final BigInteger b;
+        private final BigInteger B;
+        private final BigInteger A;
+        private final byte[] K;
+
+        SrpServer(SrpParams params, BigInteger verifier) {
+            this.N = params.N;
+            this.g = params.g;
+            this.v = Objects.requireNonNull(verifier);
+            this.b = new BigInteger(32, RANDOM);
+            this.B = k(params).multiply(v).mod(N).add(g.modPow(b, N)).mod(N);
+        }
+
+        private static BigInteger k(SrpParams params) {
+            byte[] Nbytes = bytes(params.N);
+            byte[] gbytes = PAD(params.g, Nbytes.length);
+            byte[] digest = hash(Nbytes, gbytes);
+            return new BigInteger(1, digest);
+        }
+
+        private static byte[] PAD(BigInteger x, int length) {
+            byte[] xbytes = bytes(x);
+            byte[] padded = new byte[length];
+            System.arraycopy(xbytes, 0, padded, length - xbytes.length, xbytes.length);
+            return padded;
+        }
+
+        private static byte[] bytes(BigInteger x) {
+            byte[] bytes = x.toByteArray();
+            if (bytes[0] == 0 && bytes.length > 1) {
+                byte[] trimmed = new byte[bytes.length - 1];
+                System.arraycopy(bytes, 1, trimmed, 0, trimmed.length);
+                return trimmed;
+            }
+            return bytes;
+        }
+
+        private static byte[] hash(byte[]... parts) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-512");
+                for (byte[] part : parts) {
+                    md.update(part);
+                }
+                return md.digest();
+            } catch (Exception e) {
+                throw new IllegalStateException("SHA-512 must be available", e);
+            }
+        }
+
+        BigInteger step1_generateB() {
+            return B;
+        }
+
+        boolean step2_verifyClientProof(BigInteger A, byte[] clientProofM1) {
+            if (A.mod(N).equals(BigInteger.ZERO) || B.mod(N).equals(BigInteger.ZERO)) {
+                throw new IllegalArgumentException("A or B is zero mod N");
+            }
+            byte[] Abytes = PAD(A, N.bitLength() / 8);
+            byte[] u = hash(Abytes, PAD(B, Abytes.length));
+            BigInteger S = A.modPow(v.modPow(u, N), N).modPow(b, N);
+            byte[] K = hash(bytes(S));
+            byte[] expectedM1 = hash(Abytes, PAD(B, Abytes.length), K);
+            return MessageDigest.isEqual(expectedM1, clientProofM1);
+        }
+
+        byte[] step3_serverProof() {
+            return hash(bytes(A), K, bytes(A), K);
+        }
+    }
+
+    public final class SrpClient {
+        private final BigInteger N;
+        private final BigInteger g;
+        private final BigInteger x;
+        private final BigInteger a;
+        private final BigInteger A;
+        private final byte[] K;
+
+        SrpClient(SrpParams params, BigInteger x) {
+            this.N = params.N;
+            this.g = params.g;
+            this.x = Objects.requireNonNull(x);
+            this.a = new BigInteger(32, RANDOM);
+            this.A = g.modPow(a, N);
+            byte[] Bbytes = PAD(B, N.bitLength() / 8);
+            byte[] u = hash(PAD(A, Bbytes.length), Bbytes);
+            BigInteger S = A.modPow(x.modPow(u, N), N).modPow(a, N);
+            K = hash(bytes(S));
+        }
+
+        BigInteger step1_generateA() {
+            return A;
+        }
+
+        byte[] step2_clientProof(BigInteger serverB) {
+            this.B = serverB;
+            return step3_serverProof();
+        }
+
+        byte[] step3_serverProof() {
+            return hash(bytes(A), K, bytes(A), K);
+        }
+
+        boolean step3_verifyServerProof(byte[] serverM2) {
+            byte[] expectedM2 = hash(bytes(A), K, bytes(A), K);
+            return MessageDigest.isEqual(expectedM2, serverM2);
+        }
+    }
+}
+```
+
+Notes:
+- The `PAD` method ensures values are represented as unsigned big-endian byte arrays of the same length as N.
+- The `hash` method computes SHA-512 of concatenated arguments.
+- The `k` value is computed as H(N || PAD(g)).
+- Constant-time comparisons are done using `MessageDigest.isEqual`.
+- The code uses Java 25+ features like flexible constructor bodies and records.

@@ -1,0 +1,6 @@
+com/reconmail/auth/AuthService$AuthInfo.class
+com/reconmail/auth/AuthService.class
+com/reconmail/auth/AuthService$Pending.class
+com/reconmail/auth/AuthService$AuthResult.class
+com/reconmail/auth/AuthService$Session.class
+com/reconmail/auth/AuthService$UserRecord.class

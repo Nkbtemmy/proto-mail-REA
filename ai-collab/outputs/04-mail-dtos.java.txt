@@ -1,0 +1,26 @@
+Here are the two records, each in its own file:
+
+```java
+package com.reconmail.mail;
+
+/**
+ * A message as the server stores it. Includes the full PGP-encrypted body.
+ */
+public record StoredMessage(String id, String fromAddress, String toAddress, String subject,
+        long timestampEpochSeconds, int flags, String ciphertextArmored) {
+}
+```
+
+```java
+// ==== FILE: Envelope.java ====
+package com.reconmail.mail;
+
+/**
+ * Routing metadata only — no body. Used for delivery and search.
+ */
+public record Envelope(String id, String fromAddress, String toAddress, String subject,
+        long timestampEpochSeconds, int flags) {
+}
+```
+
+The `Envelope` record contains only the metadata needed for routing and searching, while the `StoredMessage` record includes the full PGP-encrypted message body.

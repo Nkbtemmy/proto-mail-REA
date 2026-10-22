@@ -1,0 +1,72 @@
+Here are the records with compact Javadoc:
+
+```java
+package com.reconmail.keyserver.api;
+
+import java.util.List;
+
+/**
+ * A published public key.
+ *
+ * @param armoredKey      the armored public key
+ * @param sha256Fingerprint the SHA-256 fingerprint of the key
+ * @param flags           key flags (e.g. for revocation)
+ * @param primary         whether this is the primary key
+ */
+public record PublicKeyEntry(String armoredKey, String sha256Fingerprint, int flags, boolean primary) {}
+
+/**
+ * Request to store encrypted key material.
+ *
+ * @param username            the user's username
+ * @param email               the user's email address
+ * @param keySalt             base64-encoded key salt
+ * @param encUserPrivateKey   armored encrypted user private key
+ * @param userPublicKey       armored user public key
+ * @param encAddrPrivateKey   armored encrypted address private key
+ * @param encAddrToken        armored encrypted address token
+ * @param addrPublicKey       armored address public key
+ */
+public record StoreKeysRequest(String username, String email, String keySalt,
+                               String encUserPrivateKey, String userPublicKey,
+                               String encAddrPrivateKey, String encAddrToken,
+                               String addrPublicKey) {}
+
+/**
+ * Response containing a directory of public keys for an email address.
+ *
+ * @param email         the email address
+ * @param keys          list of public key entries
+ * @param sklSignature  signature of the key list
+ * @param epochId       the epoch identifier
+ */
+public record KeyDirectoryResponse(String email, List<PublicKeyEntry> keys,
+                                   String sklSignature, long epochId) {}
+
+/**
+ * A line in a signed key list.
+ *
+ * @param sha256Fingerprint the SHA-256 fingerprint of the key
+ * @param flags           key flags (e.g. for revocation)
+ * @param primary         whether this is the primary key
+ */
+public record SignedKeyListEntry(String sha256Fingerprint, int flags, boolean primary) {}
+
+/**
+ * Proof that a key list is included in an epoch.
+ *
+ * @param email        the email address
+ * @param epochId      the epoch identifier
+ * @param rootHash     the root hash of the Merkle tree
+ * @param auditPath    the audit path in the Merkle tree
+ * @param leafHash     the hash of the key list entry
+ */
+public record KtInclusionProof(String email, long epochId, String rootHash,
+                               List<String> auditPath, String leafHash) {}
+```
+
+Notes:
+- All fields are final and readable via public getters.
+- The Javadocs are concise, explaining what each field represents.
+- No extra logic or annotations are included, as requested.
+- The package is set to `com.reconmail.keyserver.api` as specified.

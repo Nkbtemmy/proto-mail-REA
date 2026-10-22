@@ -1,0 +1,34 @@
+You are Manzi, the coding assistant. Here are the code snippets:
+
+```java
+// ==== PASTE INTO com.reconmail.cli.CliEngine ====
+public String accounts() {
+    return "accounts: " + String.join(",", clients.keySet()) + (clients.isEmpty() ? " (none)" : "");
+}
+
+public String external(String from, String to, String subject, String body) throws Exception {
+    String recipientPublicKeyArmored = keyServer.directory(to).keys().get(0).armoredKey();
+    String id = UUID.randomUUID().toString().substring(0, 8);
+    pipeline.deliverExternalInbound(id, from, to, subject, body, recipientPublicKeyArmored);
+    return "delivered external mail to " + to + " (id=" + id + ")";
+}
+```
+
+```java
+// ==== PASTE INTO com.reconmail.cli.Cli ====
+case "accounts" -> IO.println(engine.accounts());
+case "external" -> {
+    String[] args = rest.split("\\s+", 4);
+    IO.println(engine.external(args[0], args[1], args[2], args.length > 3 ? args[3] : ""));
+}
+```
+
+```java
+// ==== PASTE INTO com.reconmail.cli.CliEngineTest ====
+@Test
+void externalDeliver() throws Exception {
+    engine.clients.put("bob@recon.test", new Account("bob@recon.test", "pw"));
+    String result = engine.external("ext@gmail.com", "bob@recon.test", "Hi", "hello");
+    assertTrue(result.contains("delivered external mail"));
+}
+```

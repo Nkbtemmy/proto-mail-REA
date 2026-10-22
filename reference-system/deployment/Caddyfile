@@ -1,0 +1,6 @@
+# TLS-terminating reverse proxy in front of the API gateway.
+# For real auto-HTTPS, replace ":8080" with your domain and expose 443 in
+# docker-compose.yml — Caddy provisions a certificate automatically.
+:8080 {
+	reverse_proxy gateway:8080
+}

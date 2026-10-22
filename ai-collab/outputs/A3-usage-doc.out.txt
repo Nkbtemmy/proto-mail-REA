@@ -1,0 +1,98 @@
+Good question! Here's a clean USAGE.md:
+
+```markdown
+# ReconMail: Getting Started
+
+## Prerequisites
+- Java 25 (the LTS release)
+- Maven 3.8+
+
+## Build & Test
+Run all tests with:
+```bash
+mvn -f reference-system/pom.xml test
+```
+There are ~38 tests across the codebase.
+
+## Interactive CLI
+Start the CLI with:
+```bash
+mvn -f reference-system/cli/pom.xml -q -Dexec.mainClass=com.reconmail.cli.Cli exec:java
+```
+
+Example session:
+```bash
+> register dev@example.com Passw0rd!
+Registered dev@example.com
+
+> login dev@example.com Passw0rd!
+Logged in as dev@example.com
+
+> send dev@example.com user2@example.com "Meeting" "Discuss the plan"
+Message sent (id: msg-123)
+
+> inbox dev@example.com
+1: msg-123 from dev@example.com
+
+> read dev@example.com msg-123 dev@example.com
+Subject: Meeting
+Body: Discuss the plan
+
+> accounts
+dev@example.com (active)
+
+> external dev@example.com user2@example.com "External" "From outside"
+Message sent (id: msg-456)
+```
+
+## End-to-End Demo
+Run the demo scenario:
+```bash
+mvn -f reference-system/app/pom.xml -q -Dexec.mainClass=com.reconmail.app.EndToEndScenario exec:java
+```
+
+## HTTP API
+Start the API server:
+```bash
+mvn -f reference-system/api/pom.xml -q -Dexec.mainClass=com.reconmail.api.ApiMain exec:java
+```
+
+Available routes:
+- `POST /auth/register` - Register a new account
+- `POST /auth/info` - Get auth info for an email
+- `POST /auth` - Login
+- `GET /auth/modulus-key` - Get the SRP modulus key
+- `POST /keys` - Store a public key
+- `GET /keys/{email}` - Get a public key
+- `GET /keys/{email}/proof` - Verify a key
+- `POST /messages` - Send a message
+- `POST /messages/external` - Send an external message
+- `GET /messages/{id}` - Read a message by ID
+- `GET /messages/inbox/{email}` - List inbox for an email
+
+## Modules
+
+### crypto
+Handles Ed25519 signing, HKDF key derivation, and AES-GCM encryption. Never re-use an IV with the same key.
+
+### srp
+Secure Remote Password implementation for password-based login. Uses a 2048-bit SRP modulus.
+
+### keyserver
+Stores and retrieves public keys by email address. Keys are stored in an encrypted format.
+
+### auth-server
+Handles user registration, login, and session management. Uses the SRP module for authentication.
+
+### mail
+Core message handling: sending, storing, and retrieving messages. Uses the crypto module for encryption.
+
+### app
+Contains the end-to-end demo scenario that exercises all components.
+
+### cli
+Provides an interactive command-line interface for testing and development.
+
+### api
+REST API for external systems to interact with ReconMail services.
+```

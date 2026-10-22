@@ -1,0 +1,3 @@
+com/reconmail/crypto/PgpCryptoTest.class
+com/reconmail/crypto/KeyDerivationTest.class
+com/reconmail/crypto/AddressKeyFactoryTest.class

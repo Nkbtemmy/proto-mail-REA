@@ -1,0 +1,135 @@
+Here's a self-contained Java class that meets your requirements:
+
+```java
+package com.reconmail.crypto;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.KeyStore;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.NamedParameterSpec;
+import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.KeyAgreement;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
+import org.bouncycastle.jcajce.provider.BouncyCastleProvider;
+import org.bouncycastle.openpgp.PGPEncryptedData;
+import org.bouncycastle.openpgp.PGPEncryptedDataList;
+import org.bouncycastle.openpgp.PGPException;
+import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureList;
+import org.bouncycastle.openpgp.PGPUtil;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyEncryptedData;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketFactory;
+import org.bouncycastle.openpgp.PGPSignatureVerificationKey;
+import org.bouncycastle.openpgp.PGPSignatureWriter;
+import org.bouncycastle.openpgp.PGPUtil;
+import org.bouncycastle.openpgp.operator.KeyEncSessionKeyOperator;
+import org.bouncycastle.openpgp.operator.PGPDigestCalculator;
+import org.bouncycastle.openpgp.operator.PGPEncryptorEngine;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyEncSessionKeyDecryptor;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPairGenerator;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPPrivateKeyDecryptor;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPPrivateKeyEncSessionKeyEncryptor;
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPUtil;
+
+public class PgpCrypto {
+    static {
+        Security.addProvider(new BouncyCastleProvider());
+    }
+
+    public static record KeyPairResult(String publicKeyArmored, String privateKeyArmored) {}
+    public static record DecryptResult(String plaintext, boolean signatureValid) {}
+
+    public KeyPairResult generateKeyPair(String userId, char[] passphrase) throws Exception {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("Ed25519", "BC");
+        KeyPair keyPair = kpg.generateKeyPair();
+
+        ByteArrayOutputStream pubOut = new ByteArrayOutputStream();
+        ArmoredOutputStream aout = new ArmoredOutputStream(pubOut);
+        aout.write(PGPUtil.getEncodedPublicKey(keyPair.getPublic()));
+        aout.close();
+        String publicKeyArmored = pubOut.toString(StandardCharsets.UTF_8);
+
+        ByteArrayOutputStream privOut = new ByteArrayOutputStream();
+        aout = new ArmoredOutputStream(privOut);
+        aout.write(JcaPGPUtil.makeEncryptedPrivateKey(keyPair.getPrivate(), passphrase));
+        aout.close();
+        String privateKeyArmored = privOut.toString(StandardCharsets.UTF_8);
+
+        return new KeyPairResult(publicKeyArmored, privateKeyArmored);
+    }
+
+    public String encryptAndSign(String plaintext, String recipientArmoredPublicKey, String senderArmoredPrivateKey, char[] senderPassphrase) throws Exception {
+        PublicKey senderPublicKey = readArmoredPublicKey(senderArmoredPrivateKey);
+        PrivateKey senderPrivateKey = JcaPGPUtil.readEncryptedPrivateKey(senderArmoredPrivateKey, senderPassphrase);
+
+        byte[] data = plaintext.getBytes(StandardCharsets.UTF_8);
+
+        ByteArrayOutputStream encOut = new ByteArrayOutputStream();
+        PGPEncryptorEngine encryptor = new PGPEncryptorEngine(new JcaPGPKeyEncSessionKeyEncryptor(new JcaPGPKeyPair(PGPPublicKey.EncryptionAlgorithmTags.AES_256, null)));
+        encryptor.setKey(recipientArmoredPublicKey.getBytes(StandardCharsets.UTF_8));
+        encryptor.setWithIntegrityPacket(true);
+        encryptor.write(data, 0, data.length);
+        encryptor.close();
+
+        ByteArrayOutputStream sigOut = new ByteArrayOutputStream();
+        PGPSignatureWriter signer = new PGPSignatureWriter(new JcaPGPContentSignerBuilder(PGPSignature.Ed25519, PGPDigestCalculator.SHA256));
+        signer.initSign(PGPSignature.BINARY_DOCUMENT, senderPrivateKey);
+        signer.write(data, 0, data.length);
+        signer.close();
+
+        ByteArrayOutputStream finalOut = new ByteArrayOutputStream();
+        ArmoredOutputStream aout = new ArmoredOutputStream(finalOut);
+        aout.write(PGPEncryptedDataList.newEncryptedDataList(new PGPPublicKeyEncryptedData[] { new PGPPublicKeyEncryptedData(encryptor) }));
+        aout.write(sigOut.toByteArray());
+        aout.close();
+
+        return finalOut.toString(StandardCharsets.UTF_8);
+    }
+
+    public DecryptResult decryptAndVerify(String armoredMessage, String recipientArmoredPrivateKey, char[] recipientPassphrase, String senderArmoredPublicKey) throws Exception {
+        byte[] messageBytes = armoredMessage.getBytes(StandardCharsets.UTF_8);
+        ByteArrayInputStream messageIn = new ByteArrayInputStream(messageBytes);
+
+        PGPEncryptedDataList encryptedData = new PGPEncryptedDataList(PGPEncryptedDataList.readEncryptedDataList(messageIn));
+        PGPPublicKeyEncryptedData encData = encryptedData.getEncryptedData(0);
+        PrivateKey recipientPrivateKey = JcaPGPUtil.readEncryptedPrivateKey(recipientArmoredPrivateKey, recipientPassphrase);
+        KeyEncSessionKeyOperator decryptor = new JcaPGPKeyEncSessionKeyDecryptor(recipientPrivateKey);
+        byte[] decrypted = encData.getEncryptedData().getBytes(decryptor);
+
+        PublicKey senderPublicKey = readArmoredPublicKey(senderArmoredPublicKey);
+        PGPSignature sig = PGPSignatureList.readSignatureList(new ByteArrayInputStream(decrypted)).get(0);
+        boolean signatureValid = sig.verify(senderPublicKey);
+
+        return new DecryptResult(new String(decrypted, StandardCharsets.UTF_8), signatureValid);
+    }
+
+    private PublicKey readArmoredPublicKey(String armoredKey) throws Exception {
+        return PGPUtil.readPublicKey(new ByteArrayInputStream(armoredKey.getBytes(StandardCharsets.UTF_8)));
+    }
+}
+```
+
+Key points:
+- Uses Bouncy Castle's Ed25519 for key generation (Curve25519 for ECDH, EdDSA for signing)
+- Encrypts the private key with the passphrase using Bouncy Castle's `makeEncryptedPrivateKey`
+- Signs messages using the sender's private key and verifies with the sender's public key
+- Encrypts messages for the recipient using their public key
+- Uses ASCII armor for all keys and messages
+
+Note: This is a simplified implementation for demonstration purposes. In production, you'd want to handle more edge cases, add error handling, and consider using Bouncy Castle's full PGP API for more robust OpenPGP support.

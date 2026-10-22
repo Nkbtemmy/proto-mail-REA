@@ -1,0 +1,105 @@
+You are Manzi, the coding assistant. Here are the test classes:
+
+```java
+// ==== FILE: reference-system/crypto/src/test/java/com/reconmail/crypto/PgpCryptoLargeBodyTest.java ====
+package com.reconmail.crypto;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+
+import org.junit.jupiter.api.Test;
+
+public class PgpCryptoLargeBodyTest {
+    @Test
+    public void encryptDecryptLargeBody() {
+        PgpCrypto crypto = new PgpCrypto();
+        KeyPairResult alice = crypto.generateKeyPair("Alice <alice@example.com>", "change-me-1234".toCharArray());
+        KeyPairResult bob = crypto.generateKeyPair("Bob <bob@example.com>", "hunter2".toCharArray());
+
+        String body = "x".repeat(10_000);
+        String encrypted = crypto.encryptAndSign(body, alice.publicKeyArmored(), bob.privateKeyArmored(), "hunter2".toCharArray());
+
+        DecryptResult decrypted = crypto.decryptAndVerify(encrypted, bob.privateKeyArmored(), "hunter2".toCharArray(), alice.publicKeyArmored());
+        assertEquals(body, decrypted.plaintext());
+        assertTrue(decrypted.signatureValid());
+    }
+}
+```
+
+```java
+// ==== FILE: reference-system/keyserver/src/test/java/com/reconmail/keyserver/MerkleSizesTest.java ====
+package com.reconmail.keyserver;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+public class MerkleSizesTest {
+    @Test
+    public void verifyTwoLeaves() {
+        List<byte[]> leaves = Arrays.asList("leaf0".getBytes(), "leaf1".getBytes());
+        MerkleTree tree = new MerkleTree(leaves);
+        for (int i = 0; i < leaves.size(); i++) {
+            InclusionProof proof = tree.prove(i);
+            assertTrue(MerkleTree.verify(leaves.get(i), proof, tree.rootHex()));
+        }
+    }
+
+    @Test
+    public void verifyEightLeaves() {
+        List<byte[]> leaves = Arrays.asList(
+                "leaf0".getBytes(), "leaf1".getBytes(), "leaf2".getBytes(), "leaf3".getBytes(),
+                "leaf4".getBytes(), "leaf5".getBytes(), "leaf6".getBytes(), "leaf7".getBytes());
+        MerkleTree tree = new MerkleTree(leaves);
+        for (int i = 0; i < leaves.size(); i++) {
+            InclusionProof proof = tree.prove(i);
+            assertTrue(MerkleTree.verify(leaves.get(i), proof, tree.rootHex()));
+        }
+    }
+}
+```
+
+```java
+// ==== FILE: reference-system/srp/src/test/java/com/reconmail/srp/SrpTwoLoginsTest.java ====
+package com.reconmail.srp;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigInteger;
+import java.util.Arrays;
+
+import org.junit.jupiter.api.Test;
+
+public class SrpTwoLoginsTest {
+    @Test
+    public void twoSuccessfulLogins() {
+        SrpParams params = SrpParams.default2048();
+        SrpCredentials cred = SrpCredentials.newSalt();
+
+        byte[] salt = cred.salt();
+        BigInteger x = cred.deriveX(salt, "alice", "password".toCharArray());
+        BigInteger v = cred.computeVerifier(params, x);
+
+        for (int i = 0; i < 2; i++) {
+            SrpClient client = new SrpClient(params, x);
+            SrpServer server = new SrpServer(params, v);
+
+            BigInteger A = client.generateA();
+            BigInteger B = server.generateB();
+
+            byte[] m1 = server.verifyClientProof(A, client.computeClientProof(B));
+            assertEquals(server.serverProof(), client.verifyServerProof(B));
+
+            // Second round
+            byte[] m2 = client.computeClientProof(B);
+            assertTrue(Arrays.equals(m1, m2));
+        }
+    }
+}
+```

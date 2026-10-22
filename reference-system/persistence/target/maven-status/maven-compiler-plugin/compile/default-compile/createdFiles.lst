@@ -1,0 +1,6 @@
+com/reconmail/persistence/KeyRepo.class
+com/reconmail/persistence/UserRepo.class
+com/reconmail/persistence/MessageRepo.class
+com/reconmail/persistence/Db.class
+com/reconmail/persistence/KeyRepo$KeyRow.class
+com/reconmail/persistence/UserRepo$UserRow.class

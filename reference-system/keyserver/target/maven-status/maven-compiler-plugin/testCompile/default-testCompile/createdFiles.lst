@@ -1,0 +1,4 @@
+com/reconmail/keyserver/KeyServerTest.class
+com/reconmail/keyserver/MerkleTreeTest.class
+com/reconmail/keyserver/KeyTransparencyTest.class
+com/reconmail/keyserver/SignedKeyListsTest.class

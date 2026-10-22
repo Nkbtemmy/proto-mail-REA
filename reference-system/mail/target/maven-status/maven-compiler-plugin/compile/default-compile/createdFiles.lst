@@ -1,0 +1,4 @@
+com/reconmail/mail/StoredMessage.class
+com/reconmail/mail/MailStore.class
+com/reconmail/mail/MailPipeline.class
+com/reconmail/mail/Envelope.class

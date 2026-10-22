@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.reconmail.api.DistributedIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.718 s -- in com.reconmail.api.DistributedIntegrationTest

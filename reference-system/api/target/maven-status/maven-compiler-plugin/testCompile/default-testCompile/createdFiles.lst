@@ -1,0 +1,7 @@
+com/reconmail/api/HttpApiIntegrationTest.class
+com/reconmail/api/DistributedIntegrationTest.class
+com/reconmail/api/ApiDocsTest.class
+com/reconmail/api/PersistenceRestartTest.class
+com/reconmail/api/HttpApiIntegrationTest$Client.class
+com/reconmail/api/TestClient$Account.class
+com/reconmail/api/TestClient.class
